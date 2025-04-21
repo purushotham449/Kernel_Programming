@@ -7,6 +7,18 @@
 
 int init_mod(void);
 void cleanup_mod(void);
+void func(void);
+
+EXPORT_SYMBOL(func); // Export function into kernel global table
+// EXPORT_SYMBOL_GPL(func); // Export function as free SW
+
+static int val = 200;
+
+void func(void)
+{
+        printk("func invoked\n");
+        printk("val = %d", val);
+}
 
 int init_mod(void) // Initialization routine/Constructor
 {
