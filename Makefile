@@ -1,4 +1,5 @@
-obj-m =dynamic_char_dev_semaphore.o
+obj-m =dynamic_char_dev_ioctl_mutex.o
+# obj-m =dynamic_char_dev_semaphore.o
 # obj-m =dynamic_ioctl_cap_char_dev.o
 #obj-m =dynamic_ioctl_char_dev.o
 #obj-m =dynamic_char_dev.o
