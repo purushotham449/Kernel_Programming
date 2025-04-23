@@ -1,4 +1,6 @@
-obj-m =char-drv_timer-interrupts.o
+obj-m =char_drv_hrtimer_hi_tasklet_spinlock.o
+# obj-m =char_drv_hrtimer_tasklet_bh.o
+# obj-m =char-drv_timer-interrupts.o
 # obj-m =char_drv_basic_interrupts.o
 # obj-m =dynamic_char_dev_ioctl_spinlock.o
 # obj-m =dynamic_char_dev_ioctl_mutex.o
