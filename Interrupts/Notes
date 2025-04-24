@@ -1,0 +1,205 @@
+Key Flags & Contexts
+--------------------------------------------------------------------------------------
+
+    Hard IRQ Context (in_irq()):
+
+        Runs when a hardware interrupt occurs.
+        Interrupts are disabled (local_irq_disable()).
+        Cannot sleep (msleep(), kmalloc(GFP_KERNEL), etc., are forbidden).
+
+    SoftIRQ Context (in_softirq()):
+
+        Runs after hard IRQ handling (e.g., network packet processing).
+        Can be preempted but cannot sleep.
+
+    Process Context (in_task()):
+
+        Normal kernel code (syscalls, kernel threads).
+        Can sleep and use blocking functions.
+        
+SoftIRQs and Tasklets
+--------------------------------------------------------------------------------------
+    SoftIRQs (softirq):
+
+        Statically allocated at compile time (e.g., NET_RX_SOFTIRQ, TIMER_SOFTIRQ).
+        Run with interrupts enabled but cannot sleep.
+        Higher priority than tasklets.
+
+    Tasklets:
+
+        Dynamically created (lower priority than softirqs).
+        Run in softirq context but are serialized (same tasklet cannot run concurrently).
+
+    Threaded IRQs (Lower Priority)
+
+        Interrupt handlers can be forced into kernel threads (IRQF_THREAD): 
+        Runs in process context, allowing blocking operations (msleep(), mutexes, etc.).
+        Lower priority than hard IRQs and softirqs.
+
+Comparison Summary
+------------------------------------------------------------------------------------------------
+Mechanism	     Execution Context     Priority    Can Sleep?	Latency	    Best Use Case
+------------------------------------------------------------------------------------------------
+Hard IRQ	     Interrupt	           Highest      ❌ No	   Lowest	   Hardware events (NIC, keyboard)
+SoftIRQ          SoftIRQ               Medium       ❌ No       Low
+Tasklet	         SoftIRQ	           Medium-Low   ❌ No	   Low	       Deferred but fast work (USB-networkstack)
+Work Queue	     Process(thread)       Low Process  ✔️ Yes	    High	    Blocking tasks (disk I/O, sysfs)
+
+When to Use Interrupt Flags?
+
+    Protecting shared data between IRQ and process context.
+    Ensuring atomicity in critical sections.
+    Preventing deadlocks when using spinlocks (spin_lock_irqsave()).
+
+IRQF_ Flags (When Requesting IRQs)
+------------------------------------------------------------------------------------------------
+When registering an interrupt handler (request_irq() or request_threaded_irq()), you can specify flags that affect behavior:
+
+Flag	                            Description
+------------------------------------------------------------------------------------------------
+IRQF_SHARED	                        Allow sharing the IRQ line among devices.
+IRQF_TIMER	                        Marks a timer interrupt (higher priority in some cases).
+IRQF_NOBALANCING	                Prevent CPU IRQ balancing for this IRQ.
+IRQF_PERCPU	IRQ                     is per-CPU (useful for high-performance drivers).
+IRQF_NO_THREAD	                    Force hard IRQ handling (no threaded IRQ).
+IRQF_EARLY_RESUME	                Early resume from suspend (used by critical drivers).
+
+Common Interrupt Control Functions
+------------------------------------------------------------------------------------------------
+
+Function	                        Description
+------------------------------------------------------------------------------------------------
+local_irq_disable()	                Disables interrupts on the current CPU.
+local_irq_enable()	                Enables interrupts on the current CPU.
+local_irq_save(flags)	            Saves current interrupt state in flags and disables interrupts.
+local_irq_restore(flags)	        Restores interrupt state from flags.
+local_bh_disable()	                Disables bottom halves (softirqs, tasklets).
+local_bh_enable()	                Enables bottom halves.
+
+Important Notes:
+------------------------------------------------------------------------------------------------
+
+    Never sleep (call schedule(), msleep(), etc.) with interrupts disabled.
+    Avoid long critical sections (disabling IRQs for too long degrades system responsiveness).
+    Use spinlocks (spin_lock(), spin_lock_irqsave()) for multi-CPU synchronization.
+
+1. Interrupts (Hard IRQ Context)
+When to Use?
+
+    For ultra-low-latency handling of hardware events (e.g., network packets, keyboard presses).
+    When minimal delay is critical (e.g., real-time systems).
+    For short, non-blocking tasks (since interrupts cannot sleep).
+
+Example Scenario: Network Packet Reception
+
+    Problem: A network card receives a packet and must process it immediately.
+
+    Solution: The NIC raises a hardware interrupt, and the kernel’s ISR (Interrupt Service Routine) quickly:
+
+        Copies the packet to a buffer.
+        Schedules a softIRQ (NET_RX_SOFTIRQ) for further processing.
+        Exits the ISR to avoid blocking other interrupts.
+
+Impact of Using Interrupts
+
+✅ Pros:
+
+    Lowest possible latency (executes immediately).
+    Guaranteed to preempt other kernel tasks.
+
+❌ Cons:
+
+    Cannot sleep (no msleep(), mutex_lock(), etc.).
+    Long ISRs cause interrupt latency issues.
+
+2. Tasklets (SoftIRQ Context)
+When to Use?
+
+    For deferred but time-sensitive work (e.g., mid-network stack processing).
+    When you need serialized execution (same tasklet won’t run concurrently on multiple CPUs).
+    For moderate-priority tasks that don’t need a full process context.
+
+Example Scenario: USB Device Enumeration
+
+    Problem: A USB device is plugged in, and the kernel must:
+        Acknowledge the hardware interrupt.
+        Defer device initialization (which might take a few milliseconds).
+
+    Solution:
+
+        The IRQ handler quickly schedules a tasklet.
+
+        The tasklet runs in softIRQ context, where it can safely:
+            Allocate memory (GFP_ATOMIC).
+            Initialize the USB device.
+
+Impact of Using Tasklets
+
+✅ Pros:
+
+    Faster than work queues (runs in softIRQ context).
+    Serialized execution (no race conditions on SMP systems).
+
+❌ Cons:
+
+    Still cannot sleep (limited to atomic operations).
+    Not preemptible (can stall if too long).
+
+3. Work Queues (Process Context)
+When to Use?
+
+    For long-running tasks (e.g., filesystem I/O, heavy computations).
+    When you need to sleep (e.g., waiting for a mutex or disk I/O).
+    For lower-priority background work (e.g., logging, periodic cleanup).
+
+Example Scenario: Writing Data to Disk
+
+    Problem: A filesystem must write dirty pages to disk, which involves:
+
+        Waiting for I/O completion (can block).
+        Handling errors (may require retries).
+
+    Solution:
+
+        The kernel schedules a work queue (fsync workqueue).
+
+        The work queue runs in process context, allowing:
+
+            Blocking operations (msleep(), mutex_lock()).
+            Disk I/O (submit_bio()).
+
+Impact of Using Work Queues
+
+✅ Pros:
+
+    Can sleep (supports blocking operations).
+    Runs in process context (fully preemptible).
+
+❌ Cons:
+
+    Higher latency (scheduled by the kernel thread pool).
+    More overhead than tasklets/interrupts.
+
+
+Real-World Linux Kernel Examples
+
+    Interrupt (Hard IRQ):
+
+        drivers/net/ethernet/intel/igb/igb_main.c (NIC packet handling).
+        drivers/input/keyboard/atkbd.c (keyboard press handling).
+
+    Tasklet:
+
+        net/core/dev.c (NET_RX_SOFTIRQ for packet processing).
+        drivers/usb/core/hcd.c (USB device initialization).
+
+    Work Queue:
+
+        fs/fs-writeback.c (writing dirty pages to disk).
+        drivers/char/random.c (entropy pool maintenance).
+
+Key Takeaways
+
+    Use interrupts for hardware events where latency is critical.
+    Use tasklets for fast deferred work that must not sleep.
+    Use work queues for long-running, blocking tasks.
