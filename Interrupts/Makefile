@@ -2,16 +2,6 @@ obj-m =char_drv_hrtimer_hi_tasklet_spinlock.o
 # obj-m =char_drv_hrtimer_tasklet_bh.o
 # obj-m =char-drv_timer-interrupts.o
 # obj-m =char_drv_basic_interrupts.o
-# obj-m =dynamic_char_dev_ioctl_spinlock.o
-# obj-m =dynamic_char_dev_ioctl_mutex.o
-# obj-m =dynamic_char_dev_semaphore.o
-# obj-m =dynamic_ioctl_cap_char_dev.o
-#obj-m =dynamic_ioctl_char_dev.o
-#obj-m =dynamic_char_dev.o
-#obj-m =char_drv.o
-#obj-m =mod.o
-#obj-m +=depmod.o
-#obj-m +=mod_params.o
 
 all:
 	make -C /lib/modules/$(shell uname -r)/build M=$(PWD) modules
