@@ -1,0 +1,73 @@
+Memory-Mapped I/O (MMIO)
+------------------------------------------------------------------------------
+
+In MMIO, device registers are mapped to physical memory and accessed as normal memory addresses.
+
+Kernel Space Access:
+------------------------------------------------------------------------------
+
+    Map physical address:
+
+    void __iomem *gpio_base = ioremap(GPIO_BASE_ADDR, SZ_4K);
+
+    Read/write:
+
+    iowrite32(1 << PIN, gpio_base + SET_OFFSET);    // Set GPIO
+    iowrite32(1 << PIN, gpio_base + CLR_OFFSET);    // Clear GPIO
+
+User Space Access:
+------------------------------------------------------------------------------
+
+    Map /dev/mem using mmap():
+
+    fd = open("/dev/mem", O_RDWR | O_SYNC);
+    gpio_base = mmap(NULL, SZ_4K, PROT_READ | PROT_WRITE, MAP_SHARED, fd, GPIO_BASE_ADDR);
+
+GPIO Example
+------------------------------------------------------------------------------
+
+Hardware Flow Diagram
+------------------------------------------------------------------------------
+
+[User Space App / Kernel Driver]
+        |
+   mmap() / ioremap()
+        ↓
+[Virtual Memory Address mapped to]
+        ↓
+[Physical Address: 0x3F200000 + offset]
+        ↓
+[GPIO Control Register]
+
+
+Memory-Mapped I/O (Kernel Space on ARM)
+------------------------------------------------------------------------------
+
+#include <linux/io.h>
+#define GPIO_BASE 0x3F200000
+#define SET_OFFSET 0x1C
+#define CLR_OFFSET 0x28
+#define GPIO_PIN 17
+
+void __iomem *gpio;
+
+gpio = ioremap(GPIO_BASE, 0x100);
+iowrite32(1 << GPIO_PIN, gpio + SET_OFFSET);  // Set GPIO
+iowrite32(1 << GPIO_PIN, gpio + CLR_OFFSET);  // Clear GPIO
+
+Memory-Mapped I/O (User Space using /dev/mem)
+------------------------------------------------------------------------------
+
+#include <fcntl.h>
+#include <sys/mman.h>
+
+#define GPIO_BASE 0x3F200000
+#define BLOCK_SIZE 4096
+#define GPIO_SET 0x1C
+#define GPIO_CLR 0x28
+#define GPIO_PIN 17
+
+int fd = open("/dev/mem", O_RDWR | O_SYNC);
+volatile unsigned int *gpio = mmap(NULL, BLOCK_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED, fd, GPIO_BASE);
+gpio[GPIO_SET/4] = 1 << GPIO_PIN;  // Set GPIO
+gpio[GPIO_CLR/4] = 1 << GPIO_PIN;  // Clear GPIO

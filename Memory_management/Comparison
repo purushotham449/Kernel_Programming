@@ -1,0 +1,9 @@
+Feature                     | Port I/O                              | Memory-Mapped I/O
+----------------------------------------------------------------------------------------------
+
+Architecture                | x86                                   | ARM, RISC-V
+Access                      | Special in/out instructions           | Regular memory access
+Kernel APIs                 | inb(), outb(), request_region()       | ioremap(), iowrite32()
+User APIs                   | /dev/port, ioperm()                   | /dev/mem, mmap()
+Performance                 | Slightly slower                       | Faster with caching
+Access Size                 | Byte or word                          | 32-bit / full register access

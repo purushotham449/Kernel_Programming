@@ -1,0 +1,51 @@
+In PMIO, devices are accessed using dedicated I/O instructions (inb, outb, etc.) and are typically used in x86 systems.
+
+Kernel Space Access
+---------------------------------------------------------------------------------------
+
+    Use functions from <linux/ioport.h>:
+
+        request_region(port, range, "name")
+        release_region(port, range)
+
+    Use in/out family:
+
+        inb(port), outb(data, port)
+        insb, outsb, inw, outw
+
+User Space Access
+---------------------------------------------------------------------------------------
+
+    Must be root
+    Open /dev/port and use lseek/read/write or ioperm() to get access:
+
+    ioperm(0x378, 1, 1);  // Grant access to port 0x378 (parallel port)
+    outb(0x01, 0x378);    // Set GPIO pin
+
+GPIO Example
+---------------------------------------------------------------------------------------
+
+Let's say GPIO base is 0x3F200000, pin 17:
+
+Port-Mapped I/O (User Space on x86)
+
+#include <stdio.h>
+#include <sys/io.h>
+#define PORT 0x378 // Hypothetical port address
+
+int main() {
+    ioperm(PORT, 1, 1);         // Request access to port
+    outb(0x01, PORT);           // Set GPIO pin
+    sleep(1);
+    outb(0x00, PORT);           // Clear GPIO pin
+    return 0;
+}
+
+Hardware Flow Diagram
+----------------------------------------------------------------------------------------
+
+[User Space App]     →      [CPU I/O Bus]
+      |                      |
+   outb()          →       Port Address (0x378)
+      |                      ↓
+   ioperm()    →     [GPIO Control Register (via Port)]
