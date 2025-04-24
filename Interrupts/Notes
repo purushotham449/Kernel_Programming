@@ -1,3 +1,32 @@
+Interrupts:
+--------------------------------------------------------------------------------------
+
+    Interrupts are signals that interrupt the normal execution of a program, allowing the CPU to respond to events from hardware or software.
+
+Interrupt Controller (PIC/APIC):
+--------------------------------------------------------------------------------------
+
+    The interrupt controller manages incoming interrupt requests, prioritizing them and routing them to the CPU. In Linux, the 8259 PIC (Programmable Interrupt Controller) and APIC (Advanced Programmable Interrupt Controller) are common interrupt controllers. 
+
+Interrupt Vector Table (IVT):
+--------------------------------------------------------------------------------------
+
+    The IVT is a table that maps interrupt numbers to the addresses of their corresponding interrupt handlers. When an interrupt occurs, the CPU uses the interrupt number to look up the handler's address in the IVT and jumps to that address. 
+
+CPU and Interrupt Handling:
+--------------------------------------------------------------------------------------
+
+    When an interrupt occurs, the CPU:
+
+        1. Enables interrupts.
+        2. Stops execution of the current process.
+        3. Pushes the current CPU state (registers, program counter) onto the stack. 
+        4. Determines the interrupt type and number.
+        5. Looks up the corresponding interrupt handler address in the IVT. 
+        6. Jumps to the interrupt handler. 
+        7. Performs the interrupt handling (e.g., reading data from a device, performing a system call).
+        8. Returns to the previous state, restoring the CPU context and resuming execution of the interrupted process. 
+
 Key Flags & Contexts
 --------------------------------------------------------------------------------------
 
